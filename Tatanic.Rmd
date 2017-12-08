@@ -1,0 +1,206 @@
+---
+title: "Kaggle Tatanic"
+output: html_notebook
+---
+
+```{r load_library }
+
+load.libraries <- c('tidyverse','data.table','mice', 'randomForest')
+install.lib <- load.libraries[!load.libraries %in% installed.packages()]
+for(libs in install.lib) install.packages(libs, dependences = TRUE)
+sapply(load.libraries, require, character = TRUE)
+
+```
+
+```{r load_datasets}
+train <- as.tibble(fread("train.csv"))
+test <- as.tibble(fread("test.csv"))
+full <- bind_rows(train,test)
+```
+
+```{r check_data_structure}
+str(full)
+```
+
+```{r show_na_values}
+colSums(sapply(full, is.na))
+```
+
+```{r show_null_values}
+colSums(sapply(full, function(x){!is.na(x) & x==""}))
+```
+
+
+
+```{r}
+median_fare <- full %>% filter(Pclass == 3 & Embarked == 'S' & FamilySize == 1) %>% select(Fare) %>% .[[1]] %>% as.vector() %>% median(na.rm= T)
+full <- full %>% mutate(Fare = ifelse(is.na(Fare), median_fare, Fare))
+```
+
+```{r}
+full %>% filter(Embarked == "")
+```
+```{r}
+full <- full %>% mutate(Embarked = ifelse(Embarked == "", "C", Embarked))
+```
+
+```{r}
+full %>% filter(Pclass == 1) %>% arrange(desc(Fare))
+```
+
+```{r }
+full <- full %>% mutate(FamilySize = SibSp + Parch + 1)
+```
+
+
+```{r}
+full %>% filter(FamilySize > 1 & is.na(Age)) 
+```
+
+```{r}
+full <- full %>% mutate(Surname = gsub(",.*\\..*","",Name))
+```
+
+```{r}
+full <- full %>% mutate(Title = trimws(gsub("(.*,)|(\\..*)","",Name)))
+```
+
+```{r}
+full %>% filter(FamilySize > 1) %>% arrange(FamilySize,Surname) %>% select(PassengerId,Survived,Sex,Age,SibSp,Parch,FamilySize,Surname,Title)
+```
+
+```{r}
+full <- full %>% mutate(IsMother = ifelse(Sex == 'female' & Parch >0 & Age > 18 & Title != 'Miss', 1, 0))
+
+```
+
+
+
+
+```{r}
+full <- full %>% mutate(IsAdult = ifelse(Age >= 18 | FamilySize == 1 | Title == 'Mrs', 1, 0))
+```
+
+```{r}
+full <- full %>% mutate(IsAdult = replace(IsAdult, IsMother == 0 & Sex == 'female' & Parch > 0 & is.na(Age), 0)) 
+```
+
+```{r}
+full <- full %>% mutate(IsAdult = replace(IsAdult, is.na(IsAdult) & is.na(Age), 0)) 
+```
+
+
+```{r}
+full <- full %>% mutate(IsMother = replace(IsMother, is.na(IsMother), 1)) 
+```
+
+```{r}
+full %>% filter(IsAdult == 0)
+```
+
+
+```{r}
+full %>% filter(is.na(IsAdult)) %>% arrange(desc(SibSp))
+```
+
+
+```{r}
+full %>% filter(FamilySize == 4) %>% arrange(FamilySize,Surname) %>% select(PassengerId,Survived,Sex,Age,SibSp,Parch,FamilySize,Surname,Title)
+```
+
+
+```{r}
+full %>% filter(FamilySize >1) %>% group_by(Surname) %>% summarise(FamilySize = max(FamilySize), TotalSurvived = sum(Survived)) %>% filter(TotalSurvived > 0) %>% mutate(whole = ifelse(FamilySize == TotalSurvived, 1 , 0))
+```
+
+
+```{r}
+full %>% filter(PassengerId<=891) %>% ggplot(aes(x=Age, fill= as.factor(Survived))) + geom_histogram(binwidth=9)
+
+
+
+```
+```{r}
+
+```
+
+
+```{r}
+age_data <- full %>% select(PassengerId,Pclass,Sex,Age,SibSp,Parch,Embarked, FamilySize,IsMother, IsAdult)
+```
+
+```{r}
+kids_data <- age_data %>% filter(IsAdult == 0)
+Adults_data <- age_data %>% filter(IsAdult == 1)
+```
+
+```{r}
+kids_data %>% ggplot(aes(Age)) + geom_histogram(binwidth = 2)
+```
+```{r}
+kids_output %>% ggplot(aes(Age)) + geom_histogram(binwidth = 2)
+```
+
+```{r}
+mice_kids <- mice(kids_data,method = "rf")
+mice_adults <- mice(Adults_data, method = "rf")
+```
+
+
+```{r}
+kids_output <- complete(mice_kids)
+adults_output <- complete(mice_adults)
+```
+
+
+```{r}
+data <- bind_rows(kids_output,adults_output)
+data <- data %>% arrange(PassengerId)
+data$Survived <- full$Survived
+
+```
+
+```{r}
+data$Sex <- factor(data$Sex)
+data$Embarked <- factor(data$Embarked)
+```
+
+```{r}
+train_data <- data %>% filter(PassengerId <= 891)
+test_data <- data %>% filter(PassengerId > 891)
+```
+
+
+```{r}
+colSums(sapply(train_data, is.na))
+```
+
+```{r}
+classifier <- randomForest(factor(Survived) ~ Pclass + Sex + Age + SibSp + Parch + 
+                                            Embarked + 
+                                            FamilySize + IsMother + IsAdult,
+                                            data = train_data)
+```
+
+
+```{r}
+plot(classifier, ylim=c(0,0.36))
+```
+
+
+
+```{r}
+prediction <- predict(classifier, test_data)
+```
+
+```{r}
+solution <- data.frame(PassengerID = test_data$PassengerId, Survived = prediction)
+write.csv(solution, file = 'Submission1.csv', row.names = F)
+```
+
+
+
+
+
+
+
