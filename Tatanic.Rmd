@@ -26,6 +26,52 @@ str(full)
 colSums(sapply(full, is.na))
 ```
 
+```{r}
+train %>% ggplot(aes(Survived)) + geom_bar()
+```
+
+```{r}
+allSurvive <- train %>% filter(Cabin != "")  %>% group_by(Cabin) %>% summarise(n=n(),Survive = sum(Survived)) %>% mutate(all_survive = as.integer(n == Survive))
+sum(allSurvive$all_survive)
+```
+
+```{r}
+full %>% filter(Cabin != "")  %>% group_by(Cabin) %>% summarise(n=n(),Survive = sum(Survived)) %>% filter(!is.na(Survive)) %>% filter(n > 1) 
+```
+
+```{r}
+not_all_survived <- full %>% filter(Cabin != "")  %>% group_by(Cabin) %>% summarise(n=n(),Survive = sum(Survived)) %>% filter(!is.na(Survive)) %>% filter(n > 1) %>% filter(n!= Survive)
+```
+
+```{r}
+train %>% filter(Cabin %in% as.vector(not_all_survived$Cabin)) %>% select(Survived,Pclass,Sex,Age,SibSp,Parch,Ticket,Fare, Cabin,Embarked)
+```
+
+```{r}
+train %>% filter(Cabin != "") %>% group_by(Cabin) %>% summarise(n=n(), Survive = sum(Survived)) %>% filter(n == 1) %>% ggplot(aes(Survive)) + geom_bar()
+```
+
+```{r}
+sum(as.integer(test$Cabin != ""))
+```
+
+```{r}
+train %>% filter(Cabin != "") %>% ggplot(aes(Survived)) + geom_bar()
+```
+
+```{r}
+full %>% group_by(Ticket) %>% mutate(n = n(), p = median(Fare), FarePerPerson = p/n) %>% filter(!is.na(Survived)) %>%ggplot(aes(FarePerPerson)) + geom_histogram(aes(fill=as.factor(Survived)), binwidth = 5)
+```
+
+
+```{r}
+train %>% ggplot(aes(Survived)) + geom_bar()
+```
+```
+
+
+
+
 ```{r show_null_values}
 colSums(sapply(full, function(x){!is.na(x) & x==""}))
 ```
