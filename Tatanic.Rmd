@@ -26,9 +26,100 @@ str(full)
 colSums(sapply(full, is.na))
 ```
 
+
+
 ```{r}
-train %>% ggplot(aes(Survived)) + geom_bar()
+train %>% ggplot(aes(as.factor(Survived))) + geom_bar() + geom_text(stat='count', aes(label=..count..), vjust=-0.5)
 ```
+```{r}
+train %>% filter(Fare < 300) %>% ggplot(aes(Fare)) + geom_histogram(aes(fill = as.factor(Survived)), binwidth = 5)
+```
+
+```{r}
+train %>% ggplot(aes(as.factor(Pclass))) + geom_bar(aes(fill = as.factor(Survived)))
+```
+
+```{r}
+full %>% group_by(Ticket) %>% mutate(n = n(), p = median(Fare), FarePerPerson = p/n) %>% filter(!is.na(Survived)) %>%ggplot(aes(FarePerPerson)) + geom_histogram(aes(fill=as.factor(Survived)), binwidth = 5)
+```
+
+```{r}
+full <- full %>% group_by(Ticket) %>% mutate(n = n(), p = median(Fare), FarePerPerson = p/n)
+```
+
+```{r}
+full <- full %>% mutate(NotAlone = ifelse(n > 1 , 1, 0))
+```
+
+```{r}
+full$n = NULL
+full$p = NULL
+```
+```{r}
+full %>% filter(Cabin != "") %>% group_by(Cabin) %>% summarise(n = n()) %>% filter(n>1)
+```
+
+```{r}
+multiCabin <- full %>% filter(Cabin != "") %>% group_by(Cabin) %>% summarise(n = n()) %>% filter(n > 1)
+```
+```{r}
+singleCabin <- full %>% filter(Cabin != "") %>% group_by(Cabin) %>% summarise(n = n()) %>% filter(n == 1)
+```
+
+```{r}
+full %>% filter(Cabin %in% singleCabin$Cabin)
+```
+
+```{r}
+full <- full %>% mutate(CabinMore = ifelse(Cabin %in% multiCabin$Cabin, 1,0))
+```
+```{r}
+full <- full %>% mutate(CabinOne = ifelse(Cabin %in% singleCabin$Cabin, 1,0))
+```
+
+```{r}
+head(full)
+```
+
+```{r}
+train %>% ggplot(aes(as.factor(Embarked))) + geom_bar(aes(fill=as.factor(Survived))) + geom_text(stat='count', aes(label=..count..), vjust=-0.5)
+```
+
+```{r}
+train_complete_notalone <- train %>% group_by(Ticket) %>% summarise(n=n(), NumSurvived = sum(Survived)) %>% filter(!(Ticket %in% (test$Ticket))) %>% filter(n>1)
+```
+```{r}
+ train %>% group_by(Ticket) %>% summarise(n=n(), NumSurvived = sum(Survived)) %>% filter(!(Ticket %in% (test$Ticket))) %>% filter(n==1)
+```
+
+```{r}
+train %>% group_by(Ticket) %>% summarise(n=n(), NumSurvived = sum(Survived)) %>% filter(!(Ticket %in% (test$Ticket))) %>% filter(n ==1) %>% ggplot(aes(as.factor(NumSurvived))) + geom_bar()
+```
+
+```{r}
+train %>% filter(Ticket %in% train_complete_notalone$Ticket) %>% select(-PassengerId,-Name)
+```
+
+```{r}
+train %>% filter(Ticket %in% train_complete_notalone$Ticket) %>% select(-PassengerId,-Name) %>% ggplot(aes(as.factor(Sex)))+ geom_bar(aes(fill=as.factor(Survived)))
+```
+
+```{r}
+train_complete_wholeCabin <- train %>% filter(Cabin != "") %>% group_by(Cabin) %>% summarise(n=n(), NumSurvived = sum(Survived)) %>% filter (!(Cabin %in% (test$Cabin))) %>% filter(n>1)
+```
+
+```{r}
+train %>% filter(Cabin != "") %>% group_by(Cabin) %>% summarise(n=n(), NumSurvived = sum(Survived)) %>% filter (!(Cabin %in% (test$Cabin))) %>% filter(n==1) %>% ggplot(aes(as.factor(NumSurvived))) + geom_bar()
+```
+
+```{r}
+train %>% filter(Cabin %in% train_complete_wholeCabin$Cabin & Cabin != "") %>% select(-PassengerId,-Name)
+```
+
+```{r}
+train %>% filter(Ticket %in% train_complete_notalone$Ticket) %>% select(-PassengerId,-Name) %>% ggplot(aes(as.factor(Sex)))+ geom_bar(aes(fill=as.factor(Survived)))
+```
+
 
 ```{r}
 allSurvive <- train %>% filter(Cabin != "")  %>% group_by(Cabin) %>% summarise(n=n(),Survive = sum(Survived)) %>% mutate(all_survive = as.integer(n == Survive))
@@ -67,6 +158,9 @@ full %>% group_by(Ticket) %>% mutate(n = n(), p = median(Fare), FarePerPerson = 
 ```{r}
 train %>% ggplot(aes(Survived)) + geom_bar()
 ```
+
+```{r}
+full <- full %>% mutate(Embarked = ifelse(Embarked == "", "C", Embarked))
 ```
 
 
@@ -86,9 +180,7 @@ full <- full %>% mutate(Fare = ifelse(is.na(Fare), median_fare, Fare))
 ```{r}
 full %>% filter(Embarked == "")
 ```
-```{r}
-full <- full %>% mutate(Embarked = ifelse(Embarked == "", "C", Embarked))
-```
+
 
 ```{r}
 full %>% filter(Pclass == 1) %>% arrange(desc(Fare))
@@ -187,7 +279,9 @@ kids_data %>% ggplot(aes(Age)) + geom_histogram(binwidth = 2)
 kids_output %>% ggplot(aes(Age)) + geom_histogram(binwidth = 2)
 ```
 
+
 ```{r}
+set.seed(123)
 mice_kids <- mice(kids_data,method = "rf")
 mice_adults <- mice(Adults_data, method = "rf")
 ```
@@ -204,6 +298,11 @@ data <- bind_rows(kids_output,adults_output)
 data <- data %>% arrange(PassengerId)
 data$Survived <- full$Survived
 
+```
+
+
+```{r}
+full$Age <- data$Age
 ```
 
 ```{r}
